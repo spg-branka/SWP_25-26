@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "seed": "deno run --allow-net --allow-read --allow-write --allow-env --allow-sys --allow-ffi seed.ts"
+  },
+  "imports": {},
+  "compilerOptions": {
+    "lib": ["deno.ns", "dom"],
+    "strict": true
+  }
+}
