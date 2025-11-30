@@ -160,6 +160,16 @@ async function main() {
   for (const q of data.results) {
     const decodedQuestion = decodeHtmlEntities(q.question);
 
+    // CHECK FIRST: if question already exists, skip everything (no answers created)
+    const existing = await prisma.question.findFirst({
+      where: { question: decodedQuestion },
+    });
+    if (existing) {
+      console.warn("Question already exists, skipping:", decodedQuestion);
+      console.log("--------------------------------------------------");
+      continue;
+    }
+
     const type = await prisma.type.upsert({
       where: { type: q.type },
       update: {},
@@ -198,24 +208,17 @@ async function main() {
       console.log("Incorrect answer inserted:", incorrect.answer, "ID:", incorrect.id);
     }
 
-    // Create Question — skip if duplicate
-    try {
-      const questionRecord = await prisma.question.create({
-        data: {
-          question: decodedQuestion,
-          typeId: type.id,
-          difficultyId: difficulty.id,
-          categoryId: category.id,
-          correct_answer_id: correctAnswer.id,
-          incorrect_answers: {
-            connect: incorrectAnswers,
-          },
-        },
-      });
-      console.log("Question inserted:", decodeHtmlEntities(questionRecord.question), "ID:", questionRecord.id);
-    } catch (err) {
-      console.warn("Question already exists, skipping:", decodedQuestion);
-    }
+    const questionRecord = await prisma.question.create({
+      data: {
+        question: decodedQuestion,
+        typeId: type.id,
+        difficultyId: difficulty.id,
+        categoryId: category.id,
+        correct_answer_id: correctAnswer.id,
+        incorrect_answers: { connect: incorrectAnswers },
+      },
+    });
+    console.log("Question inserted:", decodeHtmlEntities(questionRecord.question), "ID:", questionRecord.id);
 
     console.log("--------------------------------------------------");
   }
