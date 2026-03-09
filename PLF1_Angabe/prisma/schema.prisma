@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client"
+  output = "client"
+  runtime = "deno"
+}
+
+datasource db {
+  provider = "sqlite"
+  url = "file:./gastro.db"
+}
+
+model Tisch {
+  id Int @id @default(autoincrement())
+  bestellungen Bestellung[]
+}
+
+model Speise {
+  id Int @id @default(autoincrement())
+  name String
+  preis Float
+  beschreibung String?
+  allergene Allergen[]
+  bestellzeilen Bestellzeile[]
+}
+
+model Allergen {
+  id Int @id @default(autoincrement())
+  name String
+  speisen Speise[]
+}
+
+model Bestellung {
+  id Int @id @default(autoincrement())
+  tischId Int
+  tisch Tisch @relation(fields: [tischId], references: [id])
+  zeitpunkt DateTime @default(now())
+  bestellzeilen Bestellzeile[]
+}
+
+model Bestellzeile {
+  id Int @id @default(autoincrement())
+  bestellungId Int
+  bestellung Bestellung @relation(fields: [bestellungId], references: [id])
+  speiseId Int
+  speise Speise @relation(fields: [speiseId], references: [id])
+  menge Int
+}

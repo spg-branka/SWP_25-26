@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiz — OpenTriviaDB</title>
+    <style>
+        :root {
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --accent: #1d4ed8;
+            --accent-contrast: #fff;
+            --correct: #16a34a;
+            --wrong: #ef4444
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+            background: var(--bg);
+            margin: 0;
+            padding: 2rem;
+            color: #111827
+        }
+
+        .wrap {
+            max-width: 880px;
+            margin: 0 auto
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 1.25rem;
+            box-shadow: 0 6px 18px rgba(13, 16, 23, .06)
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 1rem
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.125rem
+        }
+
+        .start-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: #334155;
+            margin-bottom: 0.35rem
+        }
+
+        select,
+        input[type=number] {
+            width: 100%;
+            padding: 0.45rem;
+            border-radius: 8px;
+            border: 1px solid #e6eef8
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 1rem
+        }
+
+        button {
+            background: var(--accent);
+            color: var(--accent-contrast);
+            border: 0;
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer
+        }
+
+        button.ghost {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid rgba(29, 78, 216, .08)
+        }
+
+        .muted {
+            color: #64748b;
+            font-size: 0.85rem
+        }
+
+        .hidden {
+            display: none
+        }
+
+        .quiz {
+            margin-top: 1rem
+        }
+
+        .question {
+            font-size: 1.05rem;
+            margin-bottom: 1rem
+        }
+
+        .answers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem
+        }
+
+        .answers button {
+            background: #f8fafc;
+            border: 1px solid #e6eef8;
+            padding: 0.6rem;
+            text-align: left;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #111827
+        }
+
+        .answers button.correct {
+            background: rgba(16, 185, 129, .12);
+            border-color: var(--correct)
+        }
+
+        .answers button.wrong {
+            background: rgba(239, 68, 68, .08);
+            border-color: var(--wrong)
+        }
+
+        .answers button:disabled {
+            opacity: 0.8;
+            cursor: default
+        }
+
+        .center {
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .progress {
+            height: 10px;
+            background: #e6eef8;
+            border-radius: 999px;
+            overflow: hidden
+        }
+
+        .progress>div {
+            height: 100%;
+            background: var(--accent);
+            width: 0
+        }
+
+        .footer {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end
+        }
+
+        .result {
+            display: grid;
+            gap: 0.5rem;
+            align-items: center;
+            text-align: center;
+            padding: 1rem
+        }
+
+        @media (max-width:600px) {
+            .answers {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body style="margin-top: 200px">
+    <div class="wrap">
+        <div class="card">
+            <header>
+                <h1>OpenTriviaDB - Fragen</h1>
+            </header>
+
+            <!-- Start page -->
+            <div id="startPage">
+                <!-- <p class="muted">Wähle die Einstellungen und klicke auf <strong>Quiz starten</strong>.</p> -->
+                <div class="start-form">
+                                        <div>
+                                                <label for="category">Kategorie</label>
+                                                <div style="display:flex;gap:0.5rem;align-items:center">
+                                                    <select id="category">
+                                                        <option value="any">Beliebig</option>
+                                                    </select>
+                                                </div>
+                                        </div>
+                    <div>
+                        <label for="difficulty">Schwierigkeit</label>
+                        <select id="difficulty">
+                            <option value="any">Beliebig</option>
+                            <option value="easy">Einfach</option>
+                            <option value="medium">Mittel</option>
+                            <option value="hard">Schwer</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="amount">Anzahl Fragen</label>
+                        <input id="amount" type="number" min="1" max="50" value="5" />
+                    </div>
+                    <div>
+                        <label>&nbsp;</label>
+                        <div class="controls-row">
+                            <button id="startBtn">Quiz starten</button>
+                            <!-- <button id="sampleBtn" class="ghost">Standard</button> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz page -->
+            <div id="quizPage" class="hidden">
+                <div style="display:flex;gap:1rem;align-items:center">
+                    <div class="muted" id="q-index">Frage 1</div>
+                    <div class="muted" id="q-total"></div>
+                    <div style="margin-left:auto" class="muted" id="score">0/0</div>
+                    <div class="progress" style="flex:1">
+                        <div id="progressbar"></div>
+                    </div>
+                    <!-- <div style="margin-left:auto" class="muted" id="score">0/0</div> -->
+                </div>
+
+                <div class="quiz">
+                    <div id="question" class="question"></div>
+                    <div id="answers" class="answers"></div>
+                </div>
+
+                <div class="footer">
+                    <button id="nextBtn" class="ghost" disabled>Weiter</button>
+                    <button id="quitBtn" class="ghost">Beenden</button>
+                </div>
+            </div>
+
+            <!-- Result page -->
+            <div id="resultPage" class="hidden">
+                <div class="result">
+                    <h2>Quiz fertig!</h2>
+                    <div id="summaryText" class="muted">Du hast X von Y richtig beantwortet.</div>
+                    <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1rem">
+                        <button id="restartBtn">Neu starten</button>
+                        <button id="backBtn" class="ghost">Zur Startseite</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Small utility helpers
+        const $ = (id) => document.getElementById(id);
+        const decode = (s) => new DOMParser().parseFromString(s, 'text/html').documentElement.textContent || s;
+        const shuffle = (arr) => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[arr[i], arr[j]] = [arr[j], arr[i]] } return arr }
+
+        // Views
+        const startPage = $('startPage');
+        const quizPage = $('quizPage');
+        const resultPage = $('resultPage');
+        const startBtn = $('startBtn');
+        const sampleBtn = $('sampleBtn');
+        const nextBtn = $('nextBtn');
+        const quitBtn = $('quitBtn');
+        const restartBtn = $('restartBtn');
+        const backBtn = $('backBtn');
+
+        // Form elements
+        const categoryEl = $('category');
+        const difficultyEl = $('difficulty');
+        const amountEl = $('amount');
+
+        // Quiz elements
+        const qIndexEl = $('q-index');
+        const qTotalEl = $('q-total');
+        const progressBarEl = $('progressbar');
+        const scoreEl = $('score');
+        const questionEl = $('question');
+        const answersEl = $('answers');
+        const summaryTextEl = $('summaryText');
+
+        // State
+        let questions = [];
+        let currentIdx = 0; // 0-based
+        let total = 0;
+        let correct = 0;
+        let lastSelected = null;
+
+        function show(view) {
+            try{
+                if (startPage) startPage.classList.add('hidden');
+                if (quizPage) quizPage.classList.add('hidden');
+                if (resultPage) resultPage.classList.add('hidden');
+                if (view) view.classList.remove('hidden');
+            } catch(e){
+                // Ensure show won't break the whole app if elements are missing
+                console.error('Error toggling views', e);
+            }
+        }
+
+        // Load categories from API (with fallback)
+        const fallbackCategories = [
+          { id: 9, name: 'General Knowledge' },
+          { id: 10, name: 'Entertainment: Books' },
+          { id: 11, name: 'Entertainment: Film' },
+          { id: 12, name: 'Entertainment: Music' },
+          { id: 17, name: 'Science & Nature' },
+          { id: 18, name: 'Science: Computers' },
+          { id: 21, name: 'Sports' },
+          { id: 23, name: 'History' },
+          { id: 22, name: 'Geography' }
+        ];
+
+        async function loadCategories() {
+            // clear existing options except first
+            while (categoryEl.options.length > 1) categoryEl.remove(1);
+            try {
+                const res = await fetch('https://opentdb.com/api_category.php');
+                const data = await res.json();
+                const cats = Array.isArray(data.trivia_categories) ? data.trivia_categories : fallbackCategories;
+                cats.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    categoryEl.appendChild(opt);
+                });
+                // categories loaded
+            } catch (err) {
+                console.warn('Kategorien konnten nicht geladen werden', err);
+                // fallback
+                fallbackCategories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    categoryEl.appendChild(opt);
+                });
+                // fallback categories loaded
+            }
+        }
+
+        function updateProgress() {
+            try{
+                if (qIndexEl) qIndexEl.textContent = `Frage ${currentIdx + 1}`;
+                if (qTotalEl) qTotalEl.textContent = ` / ${questions.length}`;
+                const percent = questions.length ? ((currentIdx) / questions.length) * 100 : 0;
+                if (progressBarEl) progressBarEl.style.width = `${percent}%`;
+                if (scoreEl) scoreEl.textContent = `${correct}/${total}`;
+            } catch (e) {
+                console.error('Error updating progress UI', e);
+            }
+        }
+
+        function renderQuestion() {
+            const q = questions[currentIdx];
+            if (!q) { show(resultPage); showResult(); return; }
+            // Decode text
+            questionEl.innerHTML = decode(q.question);
+
+            // Build answer options
+            let options = [];
+            if (q.type === 'boolean') {
+                options = ['True', 'False'];
+            } else {
+                options = q.incorrect_answers.slice().map(decode);
+                options.push(decode(q.correct_answer));
+                shuffle(options);
+            }
+
+            lastSelected = null;
+            answersEl.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = opt;
+                btn.addEventListener('click', () => onAnswerSelected(btn, opt, decode(q.correct_answer)));
+                answersEl.appendChild(btn);
+            });
+
+            updateProgress();
+            if (nextBtn) {
+                nextBtn.disabled = true;
+            }
+        }
+
+        function onAnswerSelected(btn, value, correctAnswer) {
+            // Disable all buttons
+            Array.from(answersEl.children).forEach(b => b.disabled = true);
+            total++;
+            lastSelected = btn;
+            if (value === correctAnswer) {
+                btn.classList.add('correct');
+                correct++;
+            } else {
+                btn.classList.add('wrong');
+                // highlight correct answer
+                Array.from(answersEl.children).forEach(b => {
+                    if (b.textContent.trim() === correctAnswer) b.classList.add('correct');
+                });
+            }
+            updateProgress();
+            if (nextBtn) {
+                // console.debug('Answer selected for question', currentIdx+1, '-> enabling next');
+                nextBtn.disabled = false;
+            } else {
+                // console.warn('nextBtn element not found when enabling next');
+            }
+        }
+
+        // Next question or finish
+        function onNext() {
+            // console.debug('Next button clicked, currentIdx=', currentIdx, 'total questions=', questions.length);
+            if (!nextBtn) return console.warn('nextBtn not available');
+            nextBtn.disabled = true; // prevent double clicks
+            // ensure user selected an option
+            if (!lastSelected) {
+                console.debug('Next pressed without selecting answer - ignoring');
+                nextBtn.disabled = false; // re-enable so they can choose
+                return;
+            }
+            currentIdx++;
+            if (currentIdx >= questions.length) {
+                show(resultPage);
+                showResult();
+                return;
+            }
+            renderQuestion();
+        }
+
+        function showResult() {
+            summaryTextEl.textContent = `Du hast ${correct} von ${questions.length} Fragen richtig beantwortet.`;
+            // Reset progress bar full
+            progressBarEl.style.width = '100%';
+        }
+
+        // Build API url and fetch questions
+        async function startQuiz() {
+            const amount = parseInt(amountEl.value) || 5;
+            const category = categoryEl.value;
+            const difficulty = difficultyEl.value;
+            // Build query
+            const params = new URLSearchParams();
+            params.set('amount', Math.min(Math.max(amount, 1), 50));
+            if (category !== 'any') params.set('category', category);
+            if (difficulty !== 'any') params.set('difficulty', difficulty);
+            // Request questions
+            try {
+                startBtn.disabled = true; startBtn.textContent = 'Lade...';
+                const url = `https://opentdb.com/api.php?${params.toString()}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.response_code !== 0 || !Array.isArray(data.results) || data.results.length === 0) {
+                    alert('Keine Fragen gefunden oder Fehler occurred (response_code=' + data.response_code + ')');
+                    startBtn.disabled = false; startBtn.textContent = 'Quiz starten';
+                    return;
+                }
+                // set up state
+                questions = data.results.map(q => ({ ...q }));
+                currentIdx = 0; total = 0; correct = 0;
+                // Show quiz
+                show(quizPage);
+                renderQuestion();
+            } catch (err) {
+                console.error(err);
+            } finally {
+                startBtn.disabled = false; startBtn.textContent = 'Quiz starten';
+            }
+        }
+
+        // Sample preset for quick testing
+        function samplePreset() {
+            difficultyEl.value = 'easy'; amountEl.value = 5;
+            // pick a popular category if available
+            // if category options were not loaded, do nothing
+            const opt = Array.from(categoryEl.options).find(o => /Science|Mathematics|General|Computers|Sports/i.test(o.text));
+            if (opt) categoryEl.value = opt.value;
+        }
+
+        // Reset to start page
+        function backToStart() {
+            show(startPage); questions = []; currentIdx = 0; total = 0; correct = 0; updateProgress();
+        }
+
+        // Event bindings and Initialize after DOM loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            try{
+                if (startBtn) startBtn.addEventListener('click', startQuiz);
+                if (nextBtn) nextBtn.addEventListener('click', onNext);
+                // if (quitBtn) quitBtn.addEventListener('click', () => { if (confirm('Möchtest du das Quiz wirklich beenden?')) backToStart(); });
+                if (quitBtn) quitBtn.addEventListener('click', backToStart);
+                if (restartBtn) restartBtn.addEventListener('click', () => { backToStart(); });
+                if (backBtn) backBtn.addEventListener('click', backToStart);
+                if (sampleBtn) sampleBtn.addEventListener('click', samplePreset);
+
+                // Load categories and show start page
+                loadCategories().then(() => {
+                    show(startPage);
+                    updateProgress();
+                }).catch(err => {
+                    console.warn('Failed to load categories during init', err);
+                    show(startPage);
+                    updateProgress();
+                });
+            } catch (e) {
+                console.error('Initialization error', e);
+                // Always try to show start page to avoid blank screen
+                if (startPage) startPage.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+
+</html>

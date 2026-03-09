@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// generator client {
+//   provider = "prisma-client"
+//   output   = "../generated/prisma"
+// }
+
+// datasource db {
+//   provider = "sqlite"
+//   url      = env("DATABASE_URL")
+// }
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id      Int     @id @default(autoincrement())
+  email   String  @unique
+  name    String
+
+  // 1:1 (optional)
+  // One User can have one Profile
+  profile Profile?
+
+  // 1:N
+  // One User can have many Posts
+  posts   Post[]
+}
+
+model Profile {
+  id     Int    @id @default(autoincrement())
+  bio    String?
+
+  // 1:1 (required on this side)
+  // Each Profile belongs to exactly one User
+  userId Int    @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Post {
+  id       Int      @id @default(autoincrement())
+  title    String
+  content  String
+
+  // 1:N
+  // Many Posts belong to one User (author)
+  authorId Int
+  author   User     @relation(fields: [authorId], references: [id])
+
+  // 1:N
+  // One Post can have many Comments
+  comments Comment[]
+
+  // N:M (implicit many-to-many)
+  // Posts can have many Tags, Tags can belong to many Posts
+  tags     Tag[]
+}
+
+model Comment {
+  id       Int      @id @default(autoincrement())
+  text     String
+
+  // 1:N
+  // Many Comments belong to one Post
+  postId   Int
+  post     Post     @relation(fields: [postId], references: [id])
+
+  // Self-relation (1:N)
+  // A Comment can have one parent Comment
+  parentId Int?
+  parent   Comment? @relation("Replies", fields: [parentId], references: [id])
+
+  // Self-relation (1:N)
+  // A Comment can have many reply Comments
+  replies  Comment[] @relation("Replies")
+}
+
+model Tag {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+
+  // N:M (implicit many-to-many)
+  // Tags can belong to many Posts
+  posts Post[]
+}

@@ -1,9 +1,20 @@
+// {
+//   "deno.enablePaths": [
+//     "./"
+//   ],
+//   "editor.inlayHints.enabled": "off",
+//   "deno.enable": true,
+//   "deno.lint": true,
+//   "deno.unstable": true,
+//   "deno.suggest.imports.hosts": {
+//     "https://jsr.io": true
+//   }
+// }
+
 {
-  "deno.enablePaths": [
-    "./"
-  ],
+  "deno.enablePaths": [],
   "editor.inlayHints.enabled": "off",
-  "deno.enable": true,
+  "deno.enable": false,
   "deno.lint": true,
   "deno.unstable": true,
   "deno.suggest.imports.hosts": {

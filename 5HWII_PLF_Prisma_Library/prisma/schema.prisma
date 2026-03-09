@@ -1,0 +1,71 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "client"
+  runtime  = "deno"
+}
+
+// ## Datenmodellierung Bibliothek
+
+// **Sie sollen für eine öffentliche Bibliothek ein Datenmodell entwerfen, um den Bestand und den Verleihvorgang digital zu erfassen.**
+
+// Wichtig sind die
+
+// Modellieren Sie ein logisches Datenmodell. Treffen Sie sinnvolle Annahmen zu Datentypen. Kardinalitäten (1:1, 1:n, n:m) sowie Primär- und Fremdschlüssel müssen deutlich erkennbar sein!
+
+
+// - **Bücher:** Titel, ISBN (eindeutig), Erscheinungsjahr und eine kurze Inhaltsangabe.
+model Buch {
+  id Int @id @default(autoincrement())
+  titel String
+  isbn String @unique
+  erscheinungsjahr Int
+  inhaltsangabe String
+  autoren Autor[]
+  //1:n (ein Buch eine Kategorie, eine Kategorie mehrere Bücher)
+  kategorie Kategorie @relation(fields: [kategorieId], references: [id])
+  kategorieId Int
+  //ein Buch kann öfters verliehen werden (zwar nicht im selben Zeitraum aber ja...), und in einem Verleih können mehrere Bücher sein
+  verleihe Verleih[]
+}
+
+// - **Autoren:** Name, Nationalität und Geburtsdatum. Ein Buch kann von mehreren Autoren geschrieben sein, und ein Autor kann mehrere Bücher verfasst haben.
+model Autor {
+  id Int @id @default(autoincrement())
+  name String
+  nationalitaet String
+  geburtsdatum String //String weil z.B. 01.01.2001
+  buecher Buch[]
+}
+
+// - **Kategorien:** Jedes Buch ist genau einer Kategorie zugeordnet (z. B. "Fachbuch", "Roman", "Krimi"). Eine Kategorie hat einen Namen und einen internen Standort-Code.
+model Kategorie {
+  id Int @id @default(autoincrement())
+  name String
+  standort String
+  buecher Buch[]
+}
+
+// - **Mitglieder:** Name, E-Mail-Adresse und das Datum des Beitritts
+model Mitglied {
+  id Int @id @default(autoincrement())
+  name String
+  email String
+  beitrittsdatum String
+  verleihe Verleih[]
+}
+
+// - **Verleih (Ausleihe):** Es muss erfasst werden, welches Mitglied welches Buch wann ausgeliehen hat und bis zu welchem Datum die Rückgabe erfolgen soll.
+model Verleih {
+  id Int @id @default(autoincrement())
+  //ein Mitglied kann mehrere Verleihe haben, aber ein Verleih kann nur von einem Mitglied getätigt werden
+  mitglied Mitglied @relation(fields: [mitgliedId], references: [id])
+  mitgliedId Int
+  ausleihdatum String
+  rueckgabedatum String
+  buecher Buch[]
+}

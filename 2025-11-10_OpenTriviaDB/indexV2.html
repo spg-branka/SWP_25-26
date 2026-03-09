@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>Quiz Seite</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        .dropdown-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 24px 0;
+        }
+        label {
+            font-weight: bold;
+        }
+        #question-container {
+            display: none;
+        }
+        #options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        #options button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background: #eaeaea;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #options button.correct {
+            background: #b6e7b6;
+        }
+        #options button.wrong {
+            background: #e7b6b6;
+        }
+        #weiter-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        #endcontainer {
+            display: none;
+            text-align: center;
+        }
+    </style>
+    <script type="module">
+        // Helper to fetch questions from backend
+        async function fetchQuestions(category, hardness, amount) {
+            // Adjust endpoint as needed for your backend
+            const params = new URLSearchParams({
+                category,
+                hardness,
+                amount
+            });
+            const res = await fetch(`/api/questions?${params}`);
+            if (!res.ok) throw new Error('Fehler beim Laden der Fragen');
+            return await res.json();
+        }
+
+        // DOM elements
+        const startBtn = document.getElementById('start-button');
+        const categorySel = document.getElementById('category');
+        const hardnessSel = document.getElementById('hardness');
+        const howmanyInput = document.getElementById('howmany');
+        const startPage = document.getElementById('startpage');
+        const questionContainer = document.getElementById('question-container');
+        const questionNumberSpan = document.getElementById('question-number');
+        const correctCountSpan = document.getElementById('correct-count');
+        const wrongCountSpan = document.getElementById('wrong-count');
+        const timerSpan = document.getElementById('timer');
+        const questionText = document.getElementById('question');
+        const optionsDiv = document.getElementById('options');
+        const weiterBtn = document.getElementById('weiter-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const endContainer = document.getElementById('endcontainer');
+
+        let questions = [];
+        let current = 0;
+        let correct = 0;
+        let wrong = 0;
+        let timerInterval = null;
+        let startTime = null;
+
+        function startTimer() {
+            startTime = Date.now();
+            timerSpan.textContent = '00:00';
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const min = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                const sec = String(elapsed % 60).padStart(2, '0');
+                timerSpan.textContent = `${min}:${sec}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function showQuestion() {
+            if (current >= questions.length) {
+                showEnd();
+                return;
+            }
+            const q = questions[current];
+            questionNumberSpan.textContent = `${current + 1}/${questions.length}`;
+            questionText.textContent = q.text || q.question || '__';
+            optionsDiv.innerHTML = '';
+            let answers = q.answers || q.options || [];
+            if (q.correct_answer && !answers.includes(q.correct_answer)) {
+                answers = [...answers, q.correct_answer];
+            }
+            // Shuffle answers
+            answers = answers.sort(() => Math.random() - 0.5);
+            answers.forEach(ans => {
+                const btn = document.createElement('button');
+                btn.textContent = ans;
+                btn.onclick = () => selectAnswer(btn, ans, q.correct_answer);
+                optionsDiv.appendChild(btn);
+            });
+            weiterBtn.style.display = 'none';
+        }
+
+        function selectAnswer(btn, ans, correctAns) {
+            Array.from(optionsDiv.children).forEach(b => b.disabled = true);
+            if (ans === correctAns) {
+                btn.classList.add('correct');
+                correct++;
+                correctCountSpan.textContent = correct;
+            } else {
+                btn.classList.add('wrong');
+                wrong++;
+                wrongCountSpan.textContent = wrong;
+                // Mark correct answer
+                Array.from(optionsDiv.children).forEach(b => {
+                    if (b.textContent === correctAns) b.classList.add('correct');
+                });
+            }
+            weiterBtn.style.display = 'inline-block';
+        }
+
+        function showEnd() {
+            stopTimer();
+            questionContainer.style.display = 'none';
+            endContainer.style.display = 'block';
+            endContainer.innerHTML = `<h2>Quiz beendet!</h2>
+                <p>Richtig: ${correct}</p>
+                <p>Falsch: ${wrong}</p>
+                <button id='restart-btn2'>Quiz neu starten</button>`;
+            document.getElementById('restart-btn2').onclick = restartQuiz;
+        }
+
+        function restartQuiz() {
+            endContainer.style.display = 'none';
+            startPage.style.display = 'block';
+            correct = 0;
+            wrong = 0;
+            current = 0;
+            correctCountSpan.textContent = '0';
+            wrongCountSpan.textContent = '0';
+            timerSpan.textContent = '00:00';
+        }
+
+        startBtn.onclick = async () => {
+            startPage.style.display = 'none';
+            questionContainer.style.display = 'block';
+            correct = 0;
+            wrong = 0;
+            current = 0;
+            correctCountSpan.textContent = '0';
+            wrongCountSpan.textContent = '0';
+            timerSpan.textContent = '00:00';
+            startTimer();
+            try {
+                questions = await fetchQuestions(categorySel.value, hardnessSel.value, howmanyInput.value);
+            } catch (e) {
+                alert(e.message);
+                restartQuiz();
+                return;
+            }
+            showQuestion();
+        };
+
+        weiterBtn.onclick = () => {
+            current++;
+            showQuestion();
+        };
+
+        restartBtn.onclick = restartQuiz;
+    </script>
+    <link rel="icon"
+          type="image/x-icon"
+          href="favicon.ico">
+</head>
+
+<body>
+    <div class="container">
+        <div id="startpage">
+            <h1>
+                <button type="button"
+                        id="start-button">Quiz starten</button>
+            </h1>
+            <div class="dropdown-container">
+                <label>Wähle eine Kategorie:
+                    <select id="category">
+                        <option value="0">Standardfragen</option>
+                        <option value="11">Film</option>
+                        <option value="24">Politik</option>
+                        <option value="17">Wissenschaft</option>
+                        <option value="23">Geschichte</option>
+                        <option value="21">Sport</option>
+                    </select>
+                </label>
+                <label>Schwierigkeit:<select id="hardness">
+                        <option value="easy">easy</option>
+                        <option value="medium">medium</option>
+                        <option value="hard">hard</option>
+                    </select></label>
+                <label>Wie viele Fragen?<input type="number"
+                           name="howmany"
+                           id="howmany"
+                           min="2"
+                           max="50"
+                           value="3">
+                </label>
+            </div>
+        </div>
+
+        <div id="question-container">
+            <div id="header">
+                <div>
+                    <span id="question-number">1/14</span>
+                    <span id="correct-count">0</span>
+                    <span id="wrong-count">0</span>
+                </div>
+                <div>
+                    <span id="timer">00:00</span>
+                </div>
+            </div>
+            <h2 id="question">__</h2>
+            <div id="options"></div>
+            <div id="weiter-container">
+                <button id="weiter-btn">Nächste Frage</button>
+                <button id="restart-btn">
+                    Quiz neu starten
+                </button>
+            </div>
+        </div>
+        <div id="endcontainer"></div>
+    </div>
+</body>
+
+</html>

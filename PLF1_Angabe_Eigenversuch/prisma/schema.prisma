@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client"
+  output = "client"
+  runtime = "deno"
+}
+
+datasource db {
+  provider = "sqlite"
+  url = "file:./database.db"
+}
+
+
+// Speise <-> Allergen: Eine Speise kann mehrere Allergene enthalen und ein bestimmtes
+// Allergen kann in mehreren Speisen enthalten sein.
+
+// Bestellung -> Tisch: Eine Bestellung gehört zu einem bestimmten Tisch
+
+// Bestellzeile -> Bestellung: Eine Bestellung hat mehrere Zeilen, in welchen jeweils auch die
+// Menge der jeweiligen Speisen erfasst werden. Jede Bestellzeile gehört einer bestimmten
+// Bestellung
+
+// Bestellzeile -> Speise: Eine Bestellzeile hat genau eine Speise, nicht umgekehrt.
+
+model Tisch {
+  id Int @id @default(autoincrement())
+  bestellung Bestellung?
+}
+
+model Bestellung {
+  id Int @id @default(autoincrement())
+  tisch Tisch @relation(fields: [tischId], references: [id])
+  tischId Int @unique
+  bestellzeilen Bestellzeile[]
+}
+
+model Bestellzeile {
+  id Int @id @default(autoincrement())
+  bestellung Bestellung @relation(fields: [bestellungId], references: [id])
+  bestellungId Int
+  speise Speise @relation(fields: [speiseId], references: [id])
+  speiseId Int
+  menge Int
+}
+
+model Speise {
+  id Int @id @default(autoincrement())
+  speise String
+  allergene Allergen[]
+  bestellzeilen Bestellzeile[]
+}
+
+model Allergen {
+  id Int @id @default(autoincrement())
+  allergen String
+  speisen Speise[]
+}

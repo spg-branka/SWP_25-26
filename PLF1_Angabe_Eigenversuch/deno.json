@@ -1,0 +1,20 @@
+{
+  "imports": {
+    "@prisma/client": "npm:@prisma/client@^6.18.0",
+    "prisma": "npm:prisma@^6.18.0",
+    "prisma/config": "npm:prisma/config@^6.18.0",
+    "@std/dotenv": "jsr:@std/dotenv@^0.225.2",
+    "@faker-js/faker": "npm:@faker-js/faker@^10.1.0",
+    "@std/assert": "jsr:@std/assert@^1.0.6"
+  },
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "prisma": "deno -A prisma",
+    "studio": "deno -A prisma studio",
+    "generate": "deno -A prisma generate",
+    "migrate": "deno -A prisma migrate dev"
+  },
+  "fmt": {
+    "indentWidth": 2
+  }
+}

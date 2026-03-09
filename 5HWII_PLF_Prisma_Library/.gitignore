@@ -1,0 +1,15 @@
+# Deno
+node_modules/
+deno.lock
+
+# Prisma
+*.db
+*.db-journal
+prisma/migrations/
+prisma/client/
+
+# Environment variables
+.env
+
+# Editor
+.vscode/

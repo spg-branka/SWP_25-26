@@ -1,0 +1,11 @@
+# Prisma local generated client (if output is customized)
+generated/
+
+# Ignore compiled JavaScript outputs
+dist/
+generated/**/*.js
+node_modules
+# Keep environment variables out of version control
+.env
+
+/generated/prisma

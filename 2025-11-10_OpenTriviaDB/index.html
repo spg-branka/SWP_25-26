@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz — OpenTrivia</title>
+  <style>
+    :root{ --bg:#f7f8fb; --card:#fff; --accent:#2b7cff; --success:#38a169; --danger:#e53e3e }
+    body{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:var(--bg); margin:0; }
+    .wrap{ max-width:760px; margin:40px auto; padding:20px; }
+    .card{ background:var(--card); border-radius:8px; box-shadow:0 6px 18px rgba(20,20,40,0.06); padding:20px }
+    h1{ margin:0 0 10px; font-size:24px }
+    .controls{ display:grid; grid-template-columns:1fr 1fr 140px; gap:12px; align-items:end }
+    label{ display:block; font-weight:600; font-size:13px; margin-bottom:6px }
+    select, input[type=number]{ width:100%; padding:8px 10px; border-radius:6px; border:1px solid #dcdfe6 }
+    button.primary{ background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer }
+    .meta{ margin-top:12px; display:flex; gap:12px; align-items:center }
+    #questionZone{ display:none; margin-top:18px }
+    .questionHeader{ display:flex; justify-content:space-between; gap:12px }
+    .options{ margin-top:12px; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px }
+    .options button{ padding:10px 12px; border-radius:8px; border:1px solid #ddd; background:#fafafa; cursor:pointer }
+    .correct{ background: #dbf5dc !important; border-color:var(--success) }
+    .wrong{ background:#fdecea !important; border-color:var(--danger) }
+    .footer{ margin-top:14px; display:flex; gap:8px; justify-content:center }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Quiz starten</h1>
+      <p>Wähle Kategorie, Schwierigkeit und Anzahl Fragen. Danach klicke auf <strong>Quiz starten</strong>.</p>
+
+      <div class="controls" id="startControls">
+        <div>
+          <label for="category">Kategorie</label>
+          <select id="category">
+            <option value="0">Beliebig</option>
+            <option value="11">Film (opentdb=11)</option>
+            <option value="24">Politik (24)</option>
+            <option value="17">Wissenschaft & Natur (17)</option>
+            <option value="23">Geschichte (23)</option>
+            <option value="21">Sport (21)</option>
+          </select>
+        </div>
+        <div>
+          <label for="hardness">Schwierigkeit</label>
+          <select id="hardness">
+            <option value="">Beliebig</option>
+            <option value="easy">easy</option>
+            <option value="medium">medium</option>
+            <option value="hard">hard</option>
+          </select>
+        </div>
+        <div>
+          <label for="amount">Anzahl</label>
+          <input id="amount" type="number" min="1" max="50" value="5" />
+        </div>
+      </div>
+
+      <div class="meta">
+        <button class="primary" id="startBtn">Quiz starten</button>
+        <div id="status" aria-live="polite"></div>
+      </div>
+
+      <div id="questionZone">
+        <div class="questionHeader">
+          <div>
+            Frage <span id="cur">0</span>/<span id="total">0</span>
+          </div>
+          <div>
+            Richtig: <span id="correct">0</span> • Falsch: <span id="wrong">0</span>
+          </div>
+        </div>
+
+        <h2 id="questionText">...</h2>
+        <div class="options" id="options"></div>
+
+        <div class="footer">
+          <button id="nextBtn" style="display:none">Nächste Frage</button>
+          <button id="restartBtn">Quiz neu starten</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Basic SPA logic: load /api/questions and show one at a time
+    const startBtn = document.getElementById('startBtn');
+    const categorySel = document.getElementById('category');
+    const hardnessSel = document.getElementById('hardness');
+    const amountInput = document.getElementById('amount');
+    const statusDiv = document.getElementById('status');
+    const questionZone = document.getElementById('questionZone');
+    const curSpan = document.getElementById('cur');
+    const totalSpan = document.getElementById('total');
+    const questionText = document.getElementById('questionText');
+    const optionsDiv = document.getElementById('options');
+    const nextBtn = document.getElementById('nextBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const correctSpan = document.getElementById('correct');
+    const wrongSpan = document.getElementById('wrong');
+
+    let questions = [];
+    let index = 0;
+    let correct = 0, wrong = 0;
+
+    function resetState() {
+      questions = [];
+      index = 0;
+      correct = 0; wrong = 0;
+      correctSpan.textContent = '0';
+      wrongSpan.textContent = '0';
+      curSpan.textContent = '0';
+      totalSpan.textContent = '0';
+      questionZone.style.display = 'none';
+      nextBtn.style.display = 'none';
+    }
+
+    function showQuestion() {
+      if (index >= questions.length) return finish();
+      const q = questions[index];
+      curSpan.textContent = String(index + 1);
+      totalSpan.textContent = String(questions.length);
+      questionText.textContent = decodeHTML(q.text || q.question || '---');
+      optionsDiv.innerHTML = '';
+      let opts = Array.isArray(q.answers) ? q.answers.slice() : [];
+      if (q.correct_answer && !opts.includes(q.correct_answer)) opts.push(q.correct_answer);
+      // shuffle
+      opts.sort(() => Math.random() - 0.5);
+      opts.forEach(opt => {
+        const b = document.createElement('button');
+        b.textContent = decodeHTML(opt);
+        b.onclick = () => select(b, opt, q.correct_answer);
+        optionsDiv.appendChild(b);
+      });
+      nextBtn.style.display = 'none';
+    }
+
+    function select(btn, chosen, correctAns) {
+      // disable all
+      Array.from(optionsDiv.children).forEach(b => b.disabled = true);
+      if (chosen === correctAns) {
+        btn.classList.add('correct');
+        correct++;
+        correctSpan.textContent = String(correct);
+      } else {
+        btn.classList.add('wrong');
+        wrong++;
+        wrongSpan.textContent = String(wrong);
+        // mark correct
+        Array.from(optionsDiv.children).forEach(b => { if (b.textContent === correctAns) b.classList.add('correct'); });
+      }
+      nextBtn.style.display = 'inline-block';
+    }
+
+    function finish() {
+      questionZone.style.display = 'none';
+      statusDiv.innerHTML = `<strong>Fertig: ${correct} richtig, ${wrong} falsch.</strong>`;
+      // show restart
+    }
+
+    startBtn.addEventListener('click', async (e) => {
+      statusDiv.textContent = '';
+      resetState();
+      const category = categorySel.value;
+      const hardness = hardnessSel.value;
+      const amount = Math.max(1, Math.min(50, Number(amountInput.value) || 3));
+
+      try {
+        const params = new URLSearchParams();
+        if (category) params.set('category', category);
+        if (hardness) params.set('hardness', hardness);
+        params.set('amount', String(amount));
+        statusDiv.textContent = 'Fragen werden geladen…';
+        startBtn.disabled = true;
+        const res = await fetch(`/api/questions?${params}`);
+        if (!res.ok) throw new Error('Fehler beim Laden der Fragen');
+        questions = await res.json();
+        if (!Array.isArray(questions) || questions.length === 0) {
+          statusDiv.textContent = 'Keine Fragen gefunden.';
+          return;
+        }
+        statusDiv.textContent = '';
+        questionZone.style.display = 'block';
+        showQuestion();
+        startBtn.disabled = false;
+      } catch (err) {
+        statusDiv.textContent = 'Fehler: ' + (err.message || err);
+        console.error(err);
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      index++;
+      if (index >= questions.length) finish(); else showQuestion();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      resetState();
+      statusDiv.textContent = '';
+    });
+
+      // Helper to decode HTML entities (e.g. &quot;, &#039;)
+      function decodeHTML(str) {
+        const tmp = document.createElement('textarea');
+        tmp.innerHTML = str || '';
+        return tmp.value;
+      }
+
+    // initial
+    resetState();
+  </script>
+</body>
+</html>
